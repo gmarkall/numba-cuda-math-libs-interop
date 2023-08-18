@@ -52,7 +52,7 @@ def get_block_fft_kernel(fft):
 def get_current_sm():
     """Returns the SM for the current device"""
     cc = cuda.get_current_device().compute_capability
-    return f"sm_{cc[0]}{cc[1]}"
+    return cc[0] * 100 + cc[1] * 10
 
 
 # In this example a one-dimensional complex-to-complex transform is performed
@@ -88,6 +88,8 @@ def introduction_example():
         data[i] = i - (i * 1j)
 
     workspace = fft.make_workspace()
+
+    return
 
     print("Input [1st FFT]:")
     print(data)
