@@ -15,3 +15,8 @@ class FFT:
 
         if fft_type == 'c2c':
             self.value_type = np.complex64
+
+        def make_workspace(self):
+            # FIXME: Need to runtime compile the make_workspace function and
+            # invoke (or provide a compiled library implementation of all
+            # variants?)
