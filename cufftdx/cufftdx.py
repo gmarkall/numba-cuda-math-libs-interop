@@ -1,5 +1,9 @@
+import cppimport
 import numpy as np
-from instant import inline
+import os
+import sys
+import tempfile
+from functools import cached_property
 
 fft_decl = """\
 using FFT = decltype(Size<{size}>()
@@ -12,14 +16,13 @@ using FFT = decltype(Size<{size}>()
           + {operator_expression}());
 """
 
-code_template = """\
+storage_size_template = """\
+unsigned get_storage_size() {{
 {fft_decl}
-void* make_workspace() {
-  cudaError_t error_code = cudaSuccess;
-  FFT::workspace_type workspace = make_workspace<FFT>(error_code);
-  return nullptr;
-}
+return FFT::storage_size;
+}}
 """
+
 
 class FFT:
     def __init__(self, *, size, precision, fft_type, direction,
@@ -36,9 +39,10 @@ class FFT:
         if fft_type == 'c2c':
             self.value_type = np.complex64
 
-    def make_workspace(self):
+    @cached_property
+    def fft_decl(self):
         c_precision = {np.float32: 'float'}[self.precision]
-        decl = fft_decl.format(
+        return fft_decl.format(
             size=self.size,
             precision=c_precision,
             fft_type=self.fft_type,
@@ -49,9 +53,45 @@ class FFT:
             operator_expression=self.operator_expression
         )
 
-        #code = code_template.format(fft_decl
+    @cached_property
+    def storage_size(self):
+        code = storage_size_template.format(fft_decl=self.fft_decl)
+        print(code)
+        # return instant.inline(code)()
 
-        print(decl)
-        # FIXME: Need to runtime compile the make_workspace function and
-        # invoke (or provide a compiled library implementation of all
-        # variants?)
+
+test_code = """\
+#include <pybind11/pybind11.h>
+
+namespace py = pybind11;
+
+int square(int x) {
+    return x * x;
+}
+
+PYBIND11_MODULE(somecode, m) {
+    m.def("square", &square);
+}
+/*
+<%
+setup_pybind11(cfg)
+%>
+*/
+"""
+
+
+def cpp_jit_module(code):
+    with tempfile.TemporaryDirectory() as tmpdir:
+        filename = os.path.join(tmpdir, 'somecode.cpp')
+        with open(filename, 'w') as f:
+            f.write(code)
+        sys.path.append(tmpdir)
+        mod = cppimport.imp_from_filepath(filename, fullname='somecode')
+        sys.path.remove(tmpdir)
+    return mod
+
+
+if __name__ == '__main__':
+    breakpoint()
+    mod = cpp_jit_module(test_code)
+    print(mod.square(9))
