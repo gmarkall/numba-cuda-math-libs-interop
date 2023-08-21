@@ -13,7 +13,7 @@ def get_block_fft_kernel(fft):
     fft_size = fft.size
 
     @cuda.jit
-    def block_fft_kernel(data, workspace):
+    def block_fft_kernel(data):
         # Local array for thread
         thread_data = cuda.local.array(storage_size, dtype=complex_type)
 
@@ -37,7 +37,7 @@ def get_block_fft_kernel(fft):
 
         # Execute FFT
         shared_memory = cuda.shared.array(0, dtype=complex_type)
-        fft_execute(thread_data, shared_memory, workspace)
+        fft_execute(thread_data, shared_memory)
 
         # Save results
         index = offset + cuda.threadIdx.x
@@ -84,12 +84,12 @@ def introduction_example():
     data = cuda.managed_array(size, dtype=fft.value_type)
 
     # Generate data
+    # XXX: This generates twice as much data as the example, but is the example
+    # only generating half as much as needed if there are 2 FFTs per block?
     for i in range(size):
         data[i] = i - (i * 1j)
 
-    workspace = fft.make_workspace()
-
-    return
+    # Generate workspace omitted as not required for this example
 
     print("Input [1st FFT]:")
     print(data)
@@ -97,10 +97,9 @@ def introduction_example():
     # Increase max shared memory if needed
     # FIXME: Implement
 
-    # Invoke kenrel with fft.block_dim threads in CUDA block
+    # Invoke kernel with fft.block_dim threads in CUDA block
     block_fft_kernel = get_block_fft_kernel(fft)
-    block_fft_kernel[1, fft.block_dim, 0, fft.shared_memory_size](data,
-                                                                  workspace)
+    block_fft_kernel[1, fft.block_dim, 0, fft.shared_memory_size](data)
     cuda.synchronize()
 
     print("Output [1st FFT]:")

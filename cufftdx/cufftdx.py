@@ -13,8 +13,10 @@ using FFT = decltype(Size<{size}>()
 """
 
 code_template = """\
+{fft_decl}
 void* make_workspace() {
-  {fft_decl}
+  cudaError_t error_code = cudaSuccess;
+  FFT::workspace_type workspace = make_workspace<FFT>(error_code);
   return nullptr;
 }
 """
@@ -47,7 +49,7 @@ class FFT:
             operator_expression=self.operator_expression
         )
 
-        code = code_template.format(fft_decl
+        #code = code_template.format(fft_decl
 
         print(decl)
         # FIXME: Need to runtime compile the make_workspace function and
